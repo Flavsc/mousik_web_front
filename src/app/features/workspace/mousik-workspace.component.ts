@@ -10,40 +10,27 @@ import {
 } from '@angular/core';
 
 import { AudioEngineService } from '../../core/services/audio-engine.service';
+import { SequencerService } from '../../core/services/sequencer.service';
+import { VideoRecorderService } from '../../core/services/video-recorder.service';
 import { VisualEngineService } from '../../core/services/visual-engine.service';
-import { OscillatorConfig } from '../../shared/models/audio-engine.models';
-
-const METER_SEGMENTS = 24;
-
-interface TestKey {
-  readonly label: string;
-  readonly midiNote: number;
-}
+import { PianoRollComponent } from './piano-roll.component';
+import { SynthRackComponent } from './synth-rack.component';
 
 @Component({
   selector: 'mousik-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [PianoRollComponent, SynthRackComponent],
   templateUrl: './mousik-workspace.component.html',
   styleUrl: './mousik-workspace.component.scss'
 })
 export class MousikWorkspaceComponent implements OnDestroy {
   protected readonly audioEngine = inject(AudioEngineService);
   protected readonly visualEngine = inject(VisualEngineService);
+  protected readonly sequencer = inject(SequencerService);
+  protected readonly videoRecorder = inject(VideoRecorderService);
 
   private readonly sceneCanvas =
     viewChild.required<ElementRef<HTMLCanvasElement>>('sceneCanvas');
-  private detachFrameCallback: (() => void) | null = null;
-
-  protected readonly testKeys: readonly TestKey[] = [
-    { label: 'C3', midiNote: 48 },
-    { label: 'D#3', midiNote: 51 },
-    { label: 'F3', midiNote: 53 },
-    { label: 'G3', midiNote: 55 },
-    { label: 'A#3', midiNote: 58 },
-    { label: 'C4', midiNote: 60 },
-    { label: 'D#4', midiNote: 63 },
-    { label: 'G4', midiNote: 67 }
-  ];
 
   protected readonly contextState = computed(() =>
     this.audioEngine.isRunning() ? 'RUN' : 'HALT'
@@ -63,45 +50,27 @@ export class MousikWorkspaceComponent implements OnDestroy {
       .padStart(5, '0')
   );
 
-  protected readonly bassMeter = computed(() =>
-    this.buildAsciiMeter(this.audioEngine.analysisFrame().bassEnergy)
-  );
-
-  protected readonly midMeter = computed(() =>
-    this.buildAsciiMeter(this.audioEngine.analysisFrame().midEnergy)
-  );
-
-  protected readonly trebleMeter = computed(() =>
-    this.buildAsciiMeter(this.audioEngine.analysisFrame().trebleEnergy)
-  );
-
-  protected readonly envelopeReadout = computed(() => {
-    const envelope = this.audioEngine.patch().envelope;
-    return `A${envelope.attackSeconds} D${envelope.decaySeconds} S${envelope.sustainLevel} R${envelope.releaseSeconds}`;
+  protected readonly recordReadout = computed(() => {
+    const totalSeconds = Math.floor(this.videoRecorder.recordingSeconds());
+    const minutes = Math.floor(totalSeconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
   });
 
-  protected readonly filterReadout = computed(() => {
-    const filter = this.audioEngine.patch().effectRack.filter;
-    return `${filter.type.toUpperCase()} ${filter.frequencyHz}HZ Q${filter.q}`;
-  });
-
-  protected readonly reverbReadout = computed(() => {
-    const reverb = this.audioEngine.patch().effectRack.reverb;
-    return `${reverb.decaySeconds}S PRE${Math.round(reverb.preDelaySeconds * 1000)}MS WET${reverb.wetLevel}`;
-  });
-
-  protected readonly distortionReadout = computed(() => {
-    const distortion = this.audioEngine.patch().effectRack.distortion;
-    return `CHEBYSHEV N${distortion.polynomialOrder} DRV${distortion.drive} WET${distortion.wetLevel}`;
+  protected readonly playheadReadout = computed(() => {
+    const beat = this.sequencer.playheadBeat();
+    const bar = Math.floor(beat / 4) + 1;
+    const beatInBar = Math.floor(beat % 4) + 1;
+    const sixteenth = Math.floor((beat % 1) / 0.25) + 1;
+    return `${bar}.${beatInBar}.${sixteenth}`;
   });
 
   constructor() {
     afterNextRender(() => {
       this.visualEngine.initialize(this.sceneCanvas().nativeElement);
       this.visualEngine.startRenderLoop();
-      this.detachFrameCallback = this.visualEngine.registerFrameCallback(() => {
-        this.audioEngine.captureAnalysisFrame();
-      });
     });
   }
 
@@ -110,35 +79,34 @@ export class MousikWorkspaceComponent implements OnDestroy {
     await this.audioEngine.resume();
   }
 
-  protected pressKey(midiNote: number): void {
-    if (!this.audioEngine.isRunning()) {
+  protected async togglePlayback(): Promise<void> {
+    if (this.sequencer.isPlaying()) {
+      this.sequencer.stop();
       return;
     }
-    this.audioEngine.noteOn(midiNote, 1);
+    await this.sequencer.play();
   }
 
-  protected releaseKey(midiNote: number): void {
-    if (!this.audioEngine.isInitialized()) {
+  protected async toggleRecording(): Promise<void> {
+    if (this.videoRecorder.isRecording()) {
+      this.videoRecorder.stop();
       return;
     }
-    this.audioEngine.noteOff(midiNote);
+    await this.videoRecorder.start();
   }
 
-  protected formatOscillator(config: OscillatorConfig): string {
-    const detune = config.detuneCents >= 0 ? `+${config.detuneCents}` : `${config.detuneCents}`;
-    const phase = (config.phaseOffsetRadians / Math.PI).toFixed(2);
-    return `${config.waveform.toUpperCase()} ${detune}CT PH${phase}PI OCT${config.octaveShift} G${config.gain}`;
+  protected onBpmChange(event: Event): void {
+    this.sequencer.setBpm(Number((event.target as HTMLInputElement).value));
+  }
+
+  protected clearPattern(): void {
+    this.sequencer.clearPattern();
   }
 
   ngOnDestroy(): void {
-    this.detachFrameCallback?.();
+    this.videoRecorder.cancel();
+    this.sequencer.stop();
     this.audioEngine.allNotesOff();
     this.visualEngine.dispose();
-  }
-
-  private buildAsciiMeter(level: number): string {
-    const clamped = Math.min(1, Math.max(0, level));
-    const filled = Math.round(clamped * METER_SEGMENTS);
-    return `[${'#'.repeat(filled).padEnd(METER_SEGMENTS, '.')}]`;
   }
 }

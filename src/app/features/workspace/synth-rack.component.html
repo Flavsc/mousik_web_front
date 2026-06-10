@@ -1,0 +1,289 @@
+@for (oscillator of audioEngine.patch().oscillators; track oscillator.id) {
+  <section class="module">
+    <header class="module__head">
+      <span class="module__title">{{ oscillator.id.toUpperCase() }}</span>
+      <button
+        type="button"
+        class="module__toggle"
+        [class.module__toggle--on]="oscillator.enabled"
+        (click)="toggleOscillator(oscillator)"
+      >
+        {{ oscillator.enabled ? 'ON' : 'OFF' }}
+      </button>
+    </header>
+    <div class="module__buttons">
+      @for (waveform of waveforms; track waveform) {
+        <button
+          type="button"
+          class="module__option"
+          [class.module__option--active]="oscillator.waveform === waveform"
+          (click)="setOscillatorWaveform(oscillator.id, waveform)"
+        >
+          {{ waveformLabel(waveform) }}
+        </button>
+      }
+    </div>
+    <label class="control">
+      <span class="control__name">DET {{ oscillator.detuneCents }}CT</span>
+      <input
+        type="range"
+        min="-50"
+        max="50"
+        step="1"
+        [value]="oscillator.detuneCents"
+        (input)="setOscillatorNumber(oscillator.id, 'detuneCents', $event)"
+      />
+    </label>
+    <label class="control">
+      <span class="control__name">PHS {{ phaseReadout(oscillator) }}</span>
+      <input
+        type="range"
+        min="0"
+        max="6.2832"
+        step="0.01"
+        [value]="oscillator.phaseOffsetRadians"
+        (input)="setOscillatorNumber(oscillator.id, 'phaseOffsetRadians', $event)"
+      />
+    </label>
+    <label class="control">
+      <span class="control__name">GAIN {{ oscillator.gain }}</span>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        [value]="oscillator.gain"
+        (input)="setOscillatorNumber(oscillator.id, 'gain', $event)"
+      />
+    </label>
+    <label class="control">
+      <span class="control__name">OCT {{ oscillator.octaveShift }}</span>
+      <input
+        type="range"
+        min="-2"
+        max="2"
+        step="1"
+        [value]="oscillator.octaveShift"
+        (input)="setOscillatorNumber(oscillator.id, 'octaveShift', $event)"
+      />
+    </label>
+  </section>
+}
+
+<section class="module">
+  <header class="module__head">
+    <span class="module__title">ENVELOPE</span>
+  </header>
+  <label class="control">
+    <span class="control__name">ATK {{ audioEngine.patch().envelope.attackSeconds }}S</span>
+    <input
+      type="range"
+      min="0.001"
+      max="2"
+      step="0.001"
+      [value]="audioEngine.patch().envelope.attackSeconds"
+      (input)="setEnvelopeParam('attackSeconds', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">DEC {{ audioEngine.patch().envelope.decaySeconds }}S</span>
+    <input
+      type="range"
+      min="0.001"
+      max="2"
+      step="0.001"
+      [value]="audioEngine.patch().envelope.decaySeconds"
+      (input)="setEnvelopeParam('decaySeconds', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">SUS {{ audioEngine.patch().envelope.sustainLevel }}</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [value]="audioEngine.patch().envelope.sustainLevel"
+      (input)="setEnvelopeParam('sustainLevel', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">REL {{ audioEngine.patch().envelope.releaseSeconds }}S</span>
+    <input
+      type="range"
+      min="0.01"
+      max="4"
+      step="0.01"
+      [value]="audioEngine.patch().envelope.releaseSeconds"
+      (input)="setEnvelopeParam('releaseSeconds', $event)"
+    />
+  </label>
+</section>
+
+<section class="module">
+  <header class="module__head">
+    <span class="module__title">FILTER</span>
+    <button
+      type="button"
+      class="module__toggle"
+      [class.module__toggle--on]="audioEngine.patch().effectRack.filter.enabled"
+      (click)="toggleFilter()"
+    >
+      {{ audioEngine.patch().effectRack.filter.enabled ? 'ON' : 'OFF' }}
+    </button>
+  </header>
+  <div class="module__buttons">
+    @for (type of filterTypes; track type) {
+      <button
+        type="button"
+        class="module__option"
+        [class.module__option--active]="audioEngine.patch().effectRack.filter.type === type"
+        (click)="setFilterType(type)"
+      >
+        {{ filterTypeLabel(type) }}
+      </button>
+    }
+  </div>
+  <label class="control">
+    <span class="control__name">FRQ {{ audioEngine.patch().effectRack.filter.frequencyHz }}HZ</span>
+    <input
+      type="range"
+      min="40"
+      max="16000"
+      step="10"
+      [value]="audioEngine.patch().effectRack.filter.frequencyHz"
+      (input)="setFilterNumber('frequencyHz', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">Q {{ audioEngine.patch().effectRack.filter.q }}</span>
+    <input
+      type="range"
+      min="0.1"
+      max="20"
+      step="0.1"
+      [value]="audioEngine.patch().effectRack.filter.q"
+      (input)="setFilterNumber('q', $event)"
+    />
+  </label>
+</section>
+
+<section class="module">
+  <header class="module__head">
+    <span class="module__title">REVERB</span>
+    <button
+      type="button"
+      class="module__toggle"
+      [class.module__toggle--on]="audioEngine.patch().effectRack.reverb.enabled"
+      (click)="toggleReverb()"
+    >
+      {{ audioEngine.patch().effectRack.reverb.enabled ? 'ON' : 'OFF' }}
+    </button>
+  </header>
+  <label class="control">
+    <span class="control__name">DCY {{ audioEngine.patch().effectRack.reverb.decaySeconds }}S</span>
+    <input
+      type="range"
+      min="0.1"
+      max="6"
+      step="0.1"
+      [value]="audioEngine.patch().effectRack.reverb.decaySeconds"
+      (input)="setReverbNumber('decaySeconds', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">PRE {{ audioEngine.patch().effectRack.reverb.preDelaySeconds }}S</span>
+    <input
+      type="range"
+      min="0"
+      max="0.2"
+      step="0.005"
+      [value]="audioEngine.patch().effectRack.reverb.preDelaySeconds"
+      (input)="setReverbNumber('preDelaySeconds', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">WET {{ audioEngine.patch().effectRack.reverb.wetLevel }}</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [value]="audioEngine.patch().effectRack.reverb.wetLevel"
+      (input)="setReverbNumber('wetLevel', $event)"
+    />
+  </label>
+</section>
+
+<section class="module">
+  <header class="module__head">
+    <span class="module__title">DISTORTION</span>
+    <button
+      type="button"
+      class="module__toggle"
+      [class.module__toggle--on]="audioEngine.patch().effectRack.distortion.enabled"
+      (click)="toggleDistortion()"
+    >
+      {{ audioEngine.patch().effectRack.distortion.enabled ? 'ON' : 'OFF' }}
+    </button>
+  </header>
+  <label class="control">
+    <span class="control__name">DRV {{ audioEngine.patch().effectRack.distortion.drive }}</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [value]="audioEngine.patch().effectRack.distortion.drive"
+      (input)="setDistortionNumber('drive', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">ORD N{{ audioEngine.patch().effectRack.distortion.polynomialOrder }}</span>
+    <input
+      type="range"
+      min="1"
+      max="15"
+      step="2"
+      [value]="audioEngine.patch().effectRack.distortion.polynomialOrder"
+      (input)="setDistortionNumber('polynomialOrder', $event)"
+    />
+  </label>
+  <label class="control">
+    <span class="control__name">WET {{ audioEngine.patch().effectRack.distortion.wetLevel }}</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [value]="audioEngine.patch().effectRack.distortion.wetLevel"
+      (input)="setDistortionNumber('wetLevel', $event)"
+    />
+  </label>
+</section>
+
+<section class="module">
+  <header class="module__head">
+    <span class="module__title">MASTER</span>
+  </header>
+  <label class="control">
+    <span class="control__name">VOL {{ audioEngine.patch().masterGain }}</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [value]="audioEngine.patch().masterGain"
+      (input)="setMasterGain($event)"
+    />
+  </label>
+</section>
+
+<section class="module module--analyzer">
+  <header class="module__head">
+    <span class="module__title">ANALYZER</span>
+  </header>
+  <pre class="analyzer__line">BASS <span class="analyzer__meter analyzer__meter--bass">{{ bassMeter() }}</span></pre>
+  <pre class="analyzer__line">MID  <span class="analyzer__meter analyzer__meter--mid">{{ midMeter() }}</span></pre>
+  <pre class="analyzer__line">TRB  <span class="analyzer__meter analyzer__meter--treble">{{ trebleMeter() }}</span></pre>
+</section>

@@ -1,0 +1,40 @@
+<div class="roll">
+  <div class="roll__keys">
+    @for (row of rows; track row.midiNote) {
+      <div class="roll__key" [class.roll__key--black]="row.isBlackKey">{{ row.label }}</div>
+    }
+  </div>
+  <div
+    #grid
+    class="roll__grid"
+    (pointerdown)="onGridPointerDown($event)"
+    (contextmenu)="$event.preventDefault()"
+  >
+    @for (row of rows; track row.midiNote) {
+      <div class="roll__row" [class.roll__row--black]="row.isBlackKey"></div>
+    }
+    @for (note of sequencer.notes(); track note.id) {
+      <div
+        class="roll__note"
+        [style.left.%]="noteLeftPercent(note)"
+        [style.top.%]="noteTopPercent(note)"
+        [style.width.%]="noteWidthPercent(note)"
+        [style.height.%]="rowHeightPercent"
+        (pointerdown)="onNotePointerDown($event, note, 'move')"
+        (pointermove)="onNotePointerMove($event)"
+        (pointerup)="onNotePointerUp($event)"
+        (pointercancel)="onNotePointerUp($event)"
+        (contextmenu)="onNoteContextMenu($event, note.id)"
+        (wheel)="onNoteWheel($event, note)"
+      >
+        <span class="roll__note-velocity" [style.width.%]="note.velocity * 100"></span>
+        <span class="roll__note-label">{{ velocityReadout(note) }}</span>
+        <span
+          class="roll__note-handle"
+          (pointerdown)="onNotePointerDown($event, note, 'resize')"
+        ></span>
+      </div>
+    }
+    <div class="roll__playhead" [style.left.%]="playheadPercent()"></div>
+  </div>
+</div>

@@ -1,0 +1,131 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.module {
+  border: var(--mousik-line);
+  background-color: var(--mousik-paper);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.module__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -8px -8px 0;
+  padding: 4px 8px;
+  background-color: var(--mousik-yellow);
+  border-bottom: var(--mousik-line);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.module__toggle {
+  border: var(--mousik-line-thin);
+  background-color: var(--mousik-paper);
+  padding: 1px 10px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--mousik-ink);
+    color: var(--mousik-paper);
+  }
+}
+
+.module__toggle--on {
+  background-color: var(--mousik-red);
+  color: var(--mousik-paper);
+}
+
+.module__buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.module__option {
+  border: var(--mousik-line-thin);
+  background-color: var(--mousik-paper);
+  padding: 5px 0;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--mousik-ink);
+    color: var(--mousik-paper);
+  }
+}
+
+.module__option--active {
+  background-color: var(--mousik-blue);
+  color: var(--mousik-paper);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.control__name {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  border: var(--mousik-line-thin);
+  background-color: var(--mousik-paper);
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 12px;
+  background-color: var(--mousik-ink);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 12px;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--mousik-ink);
+}
+
+.module--analyzer {
+  background-color: var(--mousik-bg);
+}
+
+.analyzer__line {
+  margin: 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.analyzer__meter--bass {
+  color: var(--mousik-red);
+}
+
+.analyzer__meter--mid {
+  color: var(--mousik-blue);
+}
+
+.analyzer__meter--treble {
+  background-color: var(--mousik-ink);
+  color: var(--mousik-yellow);
+}

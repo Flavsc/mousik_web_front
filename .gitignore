@@ -1,0 +1,15 @@
+/dist
+/out-tsc
+/node_modules
+.angular/cache
+npm-debug.log
+yarn-error.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+.claude

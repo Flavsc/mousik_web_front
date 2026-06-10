@@ -1,0 +1,52 @@
+:root {
+  --mousik-bg: #c0c0c0;
+  --mousik-paper: #ffffff;
+  --mousik-ink: #000000;
+  --mousik-red: #ff0000;
+  --mousik-yellow: #ffff00;
+  --mousik-blue: #0000ff;
+  --mousik-line: 3px solid #000000;
+  --mousik-line-thin: 2px solid #000000;
+  --mousik-block-shadow: 4px 4px 0 #000000;
+  --mousik-font-stack: 'JetBrains Mono', 'Courier New', Courier, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0;
+  transition: none;
+  animation: none;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--mousik-bg);
+  color: var(--mousik-ink);
+  font-family: var(--mousik-font-stack);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+::selection {
+  background: var(--mousik-ink);
+  color: var(--mousik-paper);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+mousik-root {
+  display: block;
+  height: 100%;
+}

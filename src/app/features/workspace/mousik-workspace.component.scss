@@ -1,0 +1,221 @@
+:host {
+  display: block;
+  height: 100%;
+  padding: 16px;
+  background-color: var(--mousik-bg);
+}
+
+.workspace-shell {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 380px 1fr;
+  grid-template-rows: 48px 1fr 190px;
+  grid-template-areas:
+    'bar bar'
+    'rack viewport'
+    'readout readout';
+  gap: 3px;
+  background-color: var(--mousik-ink);
+  border: var(--mousik-line);
+  box-shadow: 8px 8px 0 var(--mousik-ink);
+}
+
+.bar {
+  grid-area: bar;
+  display: flex;
+  align-items: stretch;
+  background-color: var(--mousik-paper);
+  font-weight: 700;
+}
+
+.bar__brand {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background-color: var(--mousik-ink);
+  color: var(--mousik-paper);
+  letter-spacing: 0.12em;
+}
+
+.bar__cell {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-right: var(--mousik-line);
+}
+
+.bar__spacer {
+  flex: 1;
+}
+
+.bar__power {
+  margin: 6px 8px;
+  padding: 0 18px;
+  border: var(--mousik-line);
+  background-color: var(--mousik-paper);
+  box-shadow: var(--mousik-block-shadow);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--mousik-ink);
+    color: var(--mousik-paper);
+  }
+
+  &:active {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+}
+
+.bar__power--online {
+  background-color: var(--mousik-red);
+  color: var(--mousik-paper);
+
+  &:hover {
+    background-color: var(--mousik-red);
+    color: var(--mousik-ink);
+  }
+}
+
+.rack {
+  grid-area: rack;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background-color: var(--mousik-paper);
+  overflow-y: auto;
+}
+
+.rack__heading {
+  padding: 4px 8px;
+  border: var(--mousik-line);
+  background-color: var(--mousik-yellow);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.rack__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: var(--mousik-line-thin);
+  font-weight: 700;
+}
+
+.rack__id {
+  background-color: var(--mousik-ink);
+  color: var(--mousik-paper);
+  padding: 0 6px;
+}
+
+.rack__value {
+  text-align: right;
+  word-break: break-all;
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 4px 4px 8px 0;
+}
+
+.keys__key {
+  padding: 16px 0;
+  border: var(--mousik-line);
+  background-color: var(--mousik-paper);
+  box-shadow: var(--mousik-block-shadow);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+
+  &:hover:not(:disabled) {
+    background-color: var(--mousik-ink);
+    color: var(--mousik-paper);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--mousik-red);
+    color: var(--mousik-paper);
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  &:disabled {
+    background-color: var(--mousik-bg);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}
+
+.viewport {
+  grid-area: viewport;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--mousik-ink);
+}
+
+.viewport__label {
+  padding: 4px 10px;
+  background-color: var(--mousik-yellow);
+  border-bottom: var(--mousik-line);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.viewport__stage {
+  position: relative;
+  flex: 1;
+}
+
+.viewport__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.readout {
+  grid-area: readout;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  background-color: var(--mousik-ink);
+}
+
+.readout__panel {
+  padding: 12px 16px;
+  background-color: var(--mousik-paper);
+  overflow: hidden;
+}
+
+.readout__panel--sequencer {
+  display: flex;
+  align-items: center;
+  background-color: var(--mousik-bg);
+}
+
+.readout__line {
+  margin: 0 0 6px;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.meter--bass {
+  color: var(--mousik-red);
+}
+
+.meter--mid {
+  color: var(--mousik-blue);
+}
+
+.meter--treble {
+  background-color: var(--mousik-ink);
+  color: var(--mousik-yellow);
+}

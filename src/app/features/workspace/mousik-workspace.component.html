@@ -1,0 +1,80 @@
+<main class="workspace-shell">
+  <header class="bar">
+    <span class="bar__brand">MOUSIK//DAW</span>
+    <span class="bar__cell">CTX:{{ contextState() }}</span>
+    <span class="bar__cell">SR:{{ sampleRateReadout() }}HZ</span>
+    <span class="bar__cell">BPM:{{ audioEngine.bpm() }}</span>
+    <span class="bar__cell">VOX:{{ audioEngine.activeVoiceCount() }}/16</span>
+    <span class="bar__spacer"></span>
+    <button
+      type="button"
+      class="bar__power"
+      [class.bar__power--online]="audioEngine.isRunning()"
+      (click)="activateAudio()"
+    >
+      {{ audioEngine.isRunning() ? 'AUDIO ONLINE' : 'POWER ON' }}
+    </button>
+  </header>
+
+  <aside class="rack">
+    <div class="rack__heading">SYNTH RACK</div>
+    @for (oscillator of audioEngine.patch().oscillators; track oscillator.id) {
+      <div class="rack__row">
+        <span class="rack__id">{{ oscillator.id.toUpperCase() }}</span>
+        <span class="rack__value">{{ formatOscillator(oscillator) }}</span>
+      </div>
+    }
+    <div class="rack__row">
+      <span class="rack__id">ENV</span>
+      <span class="rack__value">{{ envelopeReadout() }}</span>
+    </div>
+    <div class="rack__row">
+      <span class="rack__id">FLT</span>
+      <span class="rack__value">{{ filterReadout() }}</span>
+    </div>
+    <div class="rack__row">
+      <span class="rack__id">REV</span>
+      <span class="rack__value">{{ reverbReadout() }}</span>
+    </div>
+    <div class="rack__row">
+      <span class="rack__id">DST</span>
+      <span class="rack__value">{{ distortionReadout() }}</span>
+    </div>
+
+    <div class="rack__heading">TEST KEYS</div>
+    <div class="keys">
+      @for (key of testKeys; track key.midiNote) {
+        <button
+          type="button"
+          class="keys__key"
+          [disabled]="!audioEngine.isRunning()"
+          (pointerdown)="pressKey(key.midiNote)"
+          (pointerup)="releaseKey(key.midiNote)"
+          (pointerleave)="releaseKey(key.midiNote)"
+          (pointercancel)="releaseKey(key.midiNote)"
+        >
+          {{ key.label }}
+        </button>
+      }
+    </div>
+  </aside>
+
+  <section class="viewport">
+    <div class="viewport__label">VIDEO OUT // 60FPS</div>
+    <div class="viewport__stage">
+      <canvas #sceneCanvas class="viewport__canvas"></canvas>
+    </div>
+  </section>
+
+  <footer class="readout">
+    <div class="readout__panel">
+      <pre class="readout__line">RMS:{{ rmsReadout() }}  PEAK:{{ peakReadout() }}HZ</pre>
+      <pre class="readout__line">BASS <span class="meter meter--bass">{{ bassMeter() }}</span></pre>
+      <pre class="readout__line">MID  <span class="meter meter--mid">{{ midMeter() }}</span></pre>
+      <pre class="readout__line">TRB  <span class="meter meter--treble">{{ trebleMeter() }}</span></pre>
+    </div>
+    <div class="readout__panel readout__panel--sequencer">
+      <pre class="readout__line">SEQUENCER // OFFLINE</pre>
+    </div>
+  </footer>
+</main>

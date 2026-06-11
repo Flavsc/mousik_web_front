@@ -8,6 +8,7 @@ import {
   inject,
   viewChild
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { AudioEngineService } from '../../core/services/audio-engine.service';
 import { SequencerService } from '../../core/services/sequencer.service';
@@ -19,7 +20,7 @@ import { SynthRackComponent } from './synth-rack.component';
 @Component({
   selector: 'mousik-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PianoRollComponent, SynthRackComponent],
+  imports: [PianoRollComponent, RouterLink, SynthRackComponent],
   templateUrl: './mousik-workspace.component.html',
   styleUrl: './mousik-workspace.component.scss'
 })
@@ -105,7 +106,6 @@ export class MousikWorkspaceComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.videoRecorder.cancel();
-    this.sequencer.stop();
     this.audioEngine.allNotesOff();
     this.visualEngine.dispose();
   }

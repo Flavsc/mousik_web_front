@@ -1,5 +1,15 @@
 export type OscillatorWaveform = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
+export type DrumSound =
+  | 'kick'
+  | 'snare'
+  | 'clap'
+  | 'hat-closed'
+  | 'hat-open'
+  | 'tom-low'
+  | 'tom-high'
+  | 'cymbal';
+
 export interface OscillatorConfig {
   readonly id: string;
   readonly waveform: OscillatorWaveform;

@@ -6,12 +6,14 @@ import {
   AudioAnalysisFrame,
   DEFAULT_SYNTH_PATCH,
   DistortionConfig,
+  DrumSound,
   EMPTY_ANALYSIS_FRAME,
   FilterConfig,
   OscillatorConfig,
   ReverbConfig,
   SynthPatch
 } from '../../shared/models/audio-engine.models';
+import { DrumSynthesizer } from '../audio/drum-synthesizer';
 import { EffectRack } from '../audio/effect-rack';
 import { clamp } from '../audio/music-math';
 import { PeriodicWaveFactory } from '../audio/periodic-wave.factory';
@@ -30,6 +32,7 @@ export class AudioEngineService {
   private waveFactory: PeriodicWaveFactory | null = null;
   private effectRack: EffectRack | null = null;
   private voiceBus: GainNode | null = null;
+  private drumSynthesizer: DrumSynthesizer | null = null;
   private frequencyBuffer: Uint8Array<ArrayBuffer> = new Uint8Array(0);
   private timeDomainBuffer: Uint8Array<ArrayBuffer> = new Uint8Array(0);
   private readonly voicesByNote = new Map<number, SynthVoice[]>();
@@ -77,6 +80,7 @@ export class AudioEngineService {
     this.waveFactory = new PeriodicWaveFactory(audioContext);
     this.effectRack = effectRack;
     this.voiceBus = voiceBus;
+    this.drumSynthesizer = new DrumSynthesizer(audioContext, masterGain);
     this.frequencyBuffer = new Uint8Array(analyser.frequencyBinCount);
     this.timeDomainBuffer = new Uint8Array(analyser.fftSize);
 
@@ -133,6 +137,17 @@ export class AudioEngineService {
       Math.max(this.audioContext.currentTime, when ?? this.audioContext.currentTime) +
       Math.max(MIN_NOTE_DURATION_SECONDS, durationSeconds);
     voice.release(releaseTime);
+  }
+
+  playDrum(sound: DrumSound, velocity = 1, when?: number): void {
+    if (this.audioContext === null || this.drumSynthesizer === null) {
+      return;
+    }
+    const triggerTime = Math.max(
+      this.audioContext.currentTime,
+      when ?? this.audioContext.currentTime
+    );
+    this.drumSynthesizer.trigger(sound, clamp(velocity, 0.05, 1), triggerTime);
   }
 
   allNotesOff(): void {
@@ -269,6 +284,7 @@ export class AudioEngineService {
     this.waveFactory = null;
     this.effectRack = null;
     this.voiceBus = null;
+    this.drumSynthesizer = null;
     this.frequencyBuffer = new Uint8Array(0);
     this.timeDomainBuffer = new Uint8Array(0);
     this.voicesByNote.clear();

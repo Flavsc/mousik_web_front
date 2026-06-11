@@ -1,0 +1,232 @@
+<canvas #backdropCanvas class="backdrop"></canvas>
+
+<div class="stage">
+  <section class="chassis">
+    <div class="panel-top">
+      <div class="display-cluster">
+        <div class="speaker-grill"></div>
+        <div class="display-stack">
+          <div class="oled">
+            <pre class="oled__line">ROOT:{{ rootName() }}  OCT:{{ octaveReadout() }}</pre>
+            <pre class="oled__line">SCALE:{{ scale().name }}  MODE:{{ mode() }}</pre>
+            <pre class="oled__line">HOLD:{{ holdEnabled() ? 'ON' : 'OFF' }}  EXT:{{ extensionReadout() }}</pre>
+            <pre class="oled__line">LOOP:{{ looperReadout() }}  EVT:{{ looperEvents().length }}  CTX:{{ contextReadout() }}</pre>
+          </div>
+          <div class="utility">
+            <div class="utility__row">
+              <span class="utility__name">ROOT</span>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('rootDown')"
+                (click)="shiftRoot(-1)"
+              >
+                <span>-</span>
+                <span class="kbd">Z</span>
+              </button>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('rootUp')"
+                (click)="shiftRoot(1)"
+              >
+                <span>+</span>
+                <span class="kbd">X</span>
+              </button>
+            </div>
+            <div class="utility__row">
+              <span class="utility__name">SCALE</span>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('scaleDown')"
+                (click)="cycleScale(-1)"
+              >
+                <span>-</span>
+                <span class="kbd">C</span>
+              </button>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('scaleUp')"
+                (click)="cycleScale(1)"
+              >
+                <span>+</span>
+                <span class="kbd">V</span>
+              </button>
+            </div>
+            <div class="utility__row">
+              <span class="utility__name">OCT</span>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('octaveDown')"
+                (click)="nudgeOctave(-1)"
+              >
+                <span>-</span>
+                <span class="kbd">N</span>
+              </button>
+              <button
+                type="button"
+                class="utilkey"
+                [class.utilkey--lit]="isControlLit('octaveUp')"
+                (click)="nudgeOctave(1)"
+              >
+                <span>+</span>
+                <span class="kbd">M</span>
+              </button>
+            </div>
+            <div class="utility__row">
+              <span class="utility__name">MODE</span>
+              <button
+                type="button"
+                class="utilkey utilkey--wide"
+                [class.utilkey--lit]="isControlLit('mode')"
+                (click)="cycleMode()"
+              >
+                <span>CYCLE</span>
+                <span class="kbd">B</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="looper">
+        <button
+          type="button"
+          class="pedal"
+          [class.pedal--pressed]="isControlLit('looper')"
+          [class.pedal--recording]="looperState() === 'recording'"
+          [class.pedal--playing]="looperState() === 'playing'"
+          [class.pedal--overdub]="looperState() === 'overdub'"
+          (click)="toggleLooper()"
+          (contextmenu)="$event.preventDefault()"
+        >
+          <span class="pedal__led"></span>
+          <span class="pedal__cap">REC/PLAY</span>
+          <span class="kbd kbd--pedal">SPACE</span>
+        </button>
+        <button
+          type="button"
+          class="clearkey"
+          [class.clearkey--lit]="isControlLit('clear')"
+          (click)="clearLooper()"
+        >
+          CLEAR
+          <span class="kbd">BACKSPACE</span>
+        </button>
+        <div class="looper__bottom">
+          <button
+            type="button"
+            class="holdkey"
+            [class.holdkey--pressed]="isControlLit('hold')"
+            [class.holdkey--engaged]="holdEnabled()"
+            (click)="toggleHold()"
+          >
+            <span class="holdkey__led"></span>
+            HOLD
+            <span class="kbd">H</span>
+          </button>
+          <a class="navkey" routerLink="/workspace">DAW</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-main">
+      <div class="side-cluster">
+        <div class="dpad" [class.dpad--inactive]="mode() !== 'CHORD'">
+          <button
+            type="button"
+            class="dpad__key dpad__key--up"
+            [class.dpad__key--lit]="isExtensionLit('maj7')"
+            (pointerdown)="onDpadPress('maj7')"
+            (pointerup)="onDpadRelease('maj7')"
+            (pointerleave)="onDpadRelease('maj7')"
+            (pointercancel)="onDpadRelease('maj7')"
+          >
+            <span class="dpad__arrow">↑</span>
+            <span class="dpad__ext">MAJ7</span>
+          </button>
+          <button
+            type="button"
+            class="dpad__key dpad__key--left"
+            [class.dpad__key--lit]="isExtensionLit('sixth')"
+            (pointerdown)="onDpadPress('sixth')"
+            (pointerup)="onDpadRelease('sixth')"
+            (pointerleave)="onDpadRelease('sixth')"
+            (pointercancel)="onDpadRelease('sixth')"
+          >
+            <span class="dpad__arrow">←</span>
+            <span class="dpad__ext">6</span>
+          </button>
+          <span class="dpad__hub"></span>
+          <button
+            type="button"
+            class="dpad__key dpad__key--right"
+            [class.dpad__key--lit]="isExtensionLit('add9')"
+            (pointerdown)="onDpadPress('add9')"
+            (pointerup)="onDpadRelease('add9')"
+            (pointerleave)="onDpadRelease('add9')"
+            (pointercancel)="onDpadRelease('add9')"
+          >
+            <span class="dpad__arrow">→</span>
+            <span class="dpad__ext">ADD9</span>
+          </button>
+          <button
+            type="button"
+            class="dpad__key dpad__key--down"
+            [class.dpad__key--lit]="isExtensionLit('min7')"
+            (pointerdown)="onDpadPress('min7')"
+            (pointerup)="onDpadRelease('min7')"
+            (pointerleave)="onDpadRelease('min7')"
+            (pointercancel)="onDpadRelease('min7')"
+          >
+            <span class="dpad__arrow">↓</span>
+            <span class="dpad__ext">m7</span>
+          </button>
+        </div>
+        <span class="selector-label">CHORD EXT (CHORD MODE)</span>
+      </div>
+
+      <div class="pads">
+        <div class="pads__row pads__row--upper">
+          @for (degree of upperRowDegrees; track degree) {
+            <button
+              type="button"
+              class="pad"
+              [class.pad--pressed]="pressedDegrees().has(degree)"
+              (pointerdown)="onPadPointerDown($event, degree)"
+              (pointerup)="onPadRelease(degree)"
+              (pointerleave)="onPadRelease(degree)"
+              (pointercancel)="onPadRelease(degree)"
+              (contextmenu)="$event.preventDefault()"
+            >
+              <span class="pad__numeral">{{ degreeNumerals[degree] }}</span>
+              <span class="pad__label">{{ padLabels()[degree] }}</span>
+              <span class="kbd kbd--pad">{{ degreeShortcuts[degree] }}</span>
+            </button>
+          }
+        </div>
+        <div class="pads__row pads__row--lower">
+          @for (degree of lowerRowDegrees; track degree) {
+            <button
+              type="button"
+              class="pad"
+              [class.pad--pressed]="pressedDegrees().has(degree)"
+              (pointerdown)="onPadPointerDown($event, degree)"
+              (pointerup)="onPadRelease(degree)"
+              (pointerleave)="onPadRelease(degree)"
+              (pointercancel)="onPadRelease(degree)"
+              (contextmenu)="$event.preventDefault()"
+            >
+              <span class="pad__numeral">{{ degreeNumerals[degree] }}</span>
+              <span class="pad__label">{{ padLabels()[degree] }}</span>
+              <span class="kbd kbd--pad">{{ degreeShortcuts[degree] }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

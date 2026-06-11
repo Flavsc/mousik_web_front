@@ -29,6 +29,13 @@ import { AudioEngineService } from './audio-engine.service';
 const RMS_SMOOTHING_RATE = 8;
 const BASE_RGB_SHIFT = 0.0012;
 const RMS_RGB_SHIFT_GAIN = 0.004;
+const BASE_CURVATURE = 0.12;
+const BASE_SCANLINE_INTENSITY = 0.22;
+const IMPACT_DECAY_RATE = 7;
+const IMPACT_CURVATURE_GAIN = 0.35;
+const IMPACT_SCANLINE_GAIN = 0.18;
+const IMPACT_RGB_SHIFT_GAIN = 0.014;
+const MAX_IMPACT_LEVEL = 2;
 
 @Injectable({ providedIn: 'root' })
 export class VisualEngineService {
@@ -49,6 +56,7 @@ export class VisualEngineService {
   private animationFrameId = 0;
   private resizeObserver: ResizeObserver | null = null;
   private smoothedRms = 0;
+  private impactLevel = 0;
 
   readonly isInitialized = signal(false);
   readonly isRendering = signal(false);
@@ -142,6 +150,10 @@ export class VisualEngineService {
     return () => this.frameCallbacks.delete(callback);
   }
 
+  triggerImpact(strength = 1): void {
+    this.impactLevel = Math.min(MAX_IMPACT_LEVEL, this.impactLevel + Math.max(0, strength));
+  }
+
   getScene(): Scene {
     if (this.scene === null) {
       throw new Error('VisualEngineService not initialized');
@@ -192,6 +204,7 @@ export class VisualEngineService {
     this.reactiveCore = null;
     this.particleField = null;
     this.smoothedRms = 0;
+    this.impactLevel = 0;
     this.isInitialized.set(false);
     this.viewportSize.set({ width: 0, height: 0, pixelRatio: 1 });
   }
@@ -207,6 +220,7 @@ export class VisualEngineService {
 
     const smoothing = Math.min(1, deltaSeconds * RMS_SMOOTHING_RATE);
     this.smoothedRms += (analysis.rms - this.smoothedRms) * smoothing;
+    this.impactLevel *= Math.exp(-IMPACT_DECAY_RATE * deltaSeconds);
 
     const frame: FrameContext = {
       elapsedSeconds,
@@ -226,8 +240,14 @@ export class VisualEngineService {
     }
     if (this.crtPass !== null) {
       this.crtPass.uniforms['uTime'].value = elapsedSeconds;
+      this.crtPass.uniforms['uCurvature'].value =
+        BASE_CURVATURE + this.impactLevel * IMPACT_CURVATURE_GAIN;
+      this.crtPass.uniforms['uScanlineIntensity'].value =
+        BASE_SCANLINE_INTENSITY + this.impactLevel * IMPACT_SCANLINE_GAIN;
       this.crtPass.uniforms['uRgbShift'].value =
-        BASE_RGB_SHIFT + this.smoothedRms * RMS_RGB_SHIFT_GAIN;
+        BASE_RGB_SHIFT +
+        this.smoothedRms * RMS_RGB_SHIFT_GAIN +
+        this.impactLevel * IMPACT_RGB_SHIFT_GAIN;
     }
 
     this.composer.render(deltaSeconds);

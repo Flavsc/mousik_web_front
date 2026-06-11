@@ -14,6 +14,13 @@ export const appRoutes: Routes = [
       )
   },
   {
+    path: 'groovebox',
+    loadComponent: () =>
+      import('./features/groovebox/mousik-groovebox.component').then(
+        (module) => module.MousikGrooveboxComponent
+      )
+  },
+  {
     path: '**',
     redirectTo: 'workspace'
   }

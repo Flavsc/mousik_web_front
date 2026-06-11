@@ -63,7 +63,7 @@ export class SequencerService {
       SCHEDULER_INTERVAL_MS
     );
     this.detachFrameCallback = this.visualEngine.registerFrameCallback(() =>
-      this.updatePlayhead()
+      this.syncPlayhead()
     );
     this.scheduleWindow();
   }
@@ -145,6 +145,24 @@ export class SequencerService {
     );
   }
 
+  recordNote(midiNote: number, startBeat: number, lengthBeats: number, velocity: number): void {
+    const quantizedStart =
+      ((Math.round(startBeat / STEP_BEATS) * STEP_BEATS) % LOOP_BEATS + LOOP_BEATS) % LOOP_BEATS;
+    const quantizedLength = clamp(
+      Math.round(lengthBeats / STEP_BEATS) * STEP_BEATS,
+      STEP_BEATS,
+      LOOP_BEATS - quantizedStart
+    );
+    const note: SequencerNote = {
+      id: crypto.randomUUID(),
+      midiNote,
+      startBeat: quantizedStart,
+      lengthBeats: quantizedLength,
+      velocity: clamp(velocity, MIN_VELOCITY, 1)
+    };
+    this.notes.update((notes) => [...notes, note]);
+  }
+
   setNoteVelocity(id: string, velocity: number): void {
     this.notes.update((notes) =>
       notes.map((note) =>
@@ -188,14 +206,21 @@ export class SequencerService {
     }
   }
 
-  private updatePlayhead(): void {
+  currentPatternBeat(): number {
     if (!this.isPlaying()) {
-      return;
+      return 0;
     }
     const secondsPerBeat = 60 / this.audioEngine.bpm();
     const beat =
       (this.audioEngine.getCurrentTime() - this.startContextTime) / secondsPerBeat;
-    this.playheadBeat.set(beat <= 0 ? 0 : beat % LOOP_BEATS);
+    return beat <= 0 ? 0 : beat % LOOP_BEATS;
+  }
+
+  syncPlayhead(): void {
+    if (!this.isPlaying()) {
+      return;
+    }
+    this.playheadBeat.set(this.currentPatternBeat());
   }
 
   private currentAbsoluteBeat(): number {

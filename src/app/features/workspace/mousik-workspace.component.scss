@@ -44,6 +44,22 @@
   border-right: var(--mousik-line);
 }
 
+.bar__link {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-right: var(--mousik-line);
+  background-color: var(--mousik-yellow);
+  color: var(--mousik-ink);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--mousik-ink);
+    color: var(--mousik-paper);
+  }
+}
+
 .bar__spacer {
   flex: 1;
 }

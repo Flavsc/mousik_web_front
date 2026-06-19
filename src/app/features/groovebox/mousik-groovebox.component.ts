@@ -14,19 +14,24 @@ import { RouterLink } from '@angular/router';
 
 import { AudioEngineService } from '../../core/services/audio-engine.service';
 import { VisualEngineService } from '../../core/services/visual-engine.service';
-import { DrumSound } from '../../shared/models/audio-engine.models';
+import {
+  AdsrEnvelopeConfig,
+  OscillatorConfig
+} from '../../shared/models/audio-engine.models';
 
+const BASE_MIDI = 48;
 const LOOP_BEATS = 16;
 const SCHEDULER_INTERVAL_MS = 25;
 const SCHEDULE_HORIZON_SECONDS = 0.15;
 const TRANSPORT_START_DELAY_SECONDS = 0.1;
 const NOTE_VELOCITY = 0.95;
 const NOTE_GATE_RATIO = 0.95;
-const DRUM_EVENT_BEATS = 0.25;
 const MIN_EVENT_BEATS = 0.1;
 const OCTAVE_MIN = -2;
 const OCTAVE_MAX = 2;
+const GLIDE_SECONDS = 0.11;
 const KEY_GLITCH_STRENGTH = 0.9;
+const MORPH_GLITCH_STRENGTH = 0.55;
 const LOOP_GLITCH_STRENGTH = 0.5;
 const CONTROL_GLITCH_STRENGTH = 0.4;
 
@@ -35,35 +40,29 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const MODES = ['BASS', 'LEAD', 'CHORD', 'DRUMS'] as const;
 type GrooveboxMode = (typeof MODES)[number];
 
-const MODE_BASE_MIDI: Record<GrooveboxMode, number> = {
-  BASS: 36,
-  LEAD: 72,
-  CHORD: 48,
-  DRUMS: 0
-};
+type DpadDirection = 'up' | 'down' | 'left' | 'right';
 
-type ChordExtension = 'maj7' | 'min7' | 'sixth' | 'add9';
-
-const EXTENSION_ADDED_INTERVALS: Record<ChordExtension, number> = {
-  maj7: 11,
-  min7: 10,
-  sixth: 9,
-  add9: 14
-};
-
-const EXTENSION_LABELS: Record<ChordExtension, string> = {
-  maj7: 'MAJ7',
-  min7: 'm7',
-  sixth: '6',
-  add9: 'ADD9'
-};
-
-const ARROW_TO_EXTENSION = new Map<string, ChordExtension>([
-  ['ArrowUp', 'maj7'],
-  ['ArrowDown', 'min7'],
-  ['ArrowLeft', 'sixth'],
-  ['ArrowRight', 'add9']
+const ARROW_TO_DIRECTION = new Map<string, DpadDirection>([
+  ['ArrowUp', 'up'],
+  ['ArrowDown', 'down'],
+  ['ArrowLeft', 'left'],
+  ['ArrowRight', 'right']
 ]);
+
+interface ChordShape {
+  readonly label: string;
+  readonly steps: readonly number[];
+}
+
+const CHORD_NOTE: ChordShape = { label: 'NOTE', steps: [0] };
+const CHORD_7: ChordShape = { label: '7TH', steps: [0, 2, 4, 6] };
+const CHORD_6: ChordShape = { label: '6TH', steps: [0, 2, 4, 5] };
+const CHORD_SUS4: ChordShape = { label: 'SUS4', steps: [0, 3, 4] };
+const CHORD_ADD9: ChordShape = { label: 'ADD9', steps: [0, 2, 4, 8] };
+const CHORD_9: ChordShape = { label: '9TH', steps: [0, 2, 4, 6, 8] };
+const CHORD_69: ChordShape = { label: '6/9', steps: [0, 2, 4, 5, 8] };
+const CHORD_11: ChordShape = { label: '11TH', steps: [0, 2, 4, 6, 8, 10] };
+const CHORD_7SUS4: ChordShape = { label: '7SUS4', steps: [0, 3, 4, 6] };
 
 const KEY_TO_DEGREE = new Map<string, number>([
   ['a', 0],
@@ -118,33 +117,56 @@ const SCALES: readonly ScaleDefinition[] = [
   { name: 'LOCRIAN', intervals: [0, 1, 3, 5, 6, 8, 10] }
 ];
 
-const DRUM_PADS: readonly { readonly sound: DrumSound; readonly label: string }[] = [
-  { sound: 'kick', label: 'KCK' },
-  { sound: 'snare', label: 'SNR' },
-  { sound: 'clap', label: 'CLP' },
-  { sound: 'hat-closed', label: 'CHH' },
-  { sound: 'hat-open', label: 'OHH' },
-  { sound: 'tom-low', label: 'TOM' },
-  { sound: 'cymbal', label: 'CYM' }
-];
+interface ModePatch {
+  readonly oscA: Partial<Omit<OscillatorConfig, 'id'>>;
+  readonly oscB: Partial<Omit<OscillatorConfig, 'id'>>;
+  readonly oscC: Partial<Omit<OscillatorConfig, 'id'>>;
+  readonly envelope: AdsrEnvelopeConfig;
+}
+
+const MODE_PATCHES: Record<GrooveboxMode, ModePatch> = {
+  BASS: {
+    oscA: { waveform: 'sine', detuneCents: 0, octaveShift: -1, gain: 0.6, enabled: true },
+    oscB: { waveform: 'triangle', detuneCents: 0, octaveShift: -2, gain: 0.4, enabled: true },
+    oscC: { waveform: 'square', detuneCents: 0, octaveShift: 0, gain: 0, enabled: false },
+    envelope: { attackSeconds: 0.025, decaySeconds: 0.2, sustainLevel: 0.65, releaseSeconds: 0.5 }
+  },
+  LEAD: {
+    oscA: { waveform: 'sawtooth', detuneCents: -6, octaveShift: 0, gain: 0.5, enabled: true },
+    oscB: { waveform: 'sawtooth', detuneCents: 6, octaveShift: 0, gain: 0.5, enabled: true },
+    oscC: { waveform: 'square', detuneCents: 0, octaveShift: 1, gain: 0.22, enabled: true },
+    envelope: { attackSeconds: 0.045, decaySeconds: 0.28, sustainLevel: 0.78, releaseSeconds: 0.6 }
+  },
+  CHORD: {
+    oscA: { waveform: 'sawtooth', detuneCents: -9, octaveShift: 0, gain: 0.4, enabled: true },
+    oscB: { waveform: 'sawtooth', detuneCents: 9, octaveShift: 0, gain: 0.4, enabled: true },
+    oscC: { waveform: 'triangle', detuneCents: 0, octaveShift: -1, gain: 0.35, enabled: true },
+    envelope: { attackSeconds: 0.14, decaySeconds: 0.45, sustainLevel: 0.88, releaseSeconds: 1.0 }
+  },
+  DRUMS: {
+    oscA: { waveform: 'square', detuneCents: 0, octaveShift: 0, gain: 0.5, enabled: true },
+    oscB: { waveform: 'sine', detuneCents: 0, octaveShift: 1, gain: 0.3, enabled: true },
+    oscC: { waveform: 'square', detuneCents: 0, octaveShift: 0, gain: 0, enabled: false },
+    envelope: { attackSeconds: 0.004, decaySeconds: 0.16, sustainLevel: 0.0001, releaseSeconds: 0.16 }
+  }
+};
 
 type LooperState = 'stopped' | 'recording' | 'playing' | 'overdub';
 
 interface LooperEvent {
   readonly id: string;
   readonly degreeIndex: number;
-  readonly mode: GrooveboxMode;
-  readonly extension: ChordExtension | null;
+  readonly steps: readonly number[];
   readonly startBeat: number;
   readonly durationBeats: number;
   readonly velocity: number;
 }
 
 interface PendingRecord {
+  readonly degreeIndex: number;
+  readonly steps: readonly number[];
   readonly startAbsoluteBeat: number;
   readonly startLoopBeat: number;
-  readonly mode: GrooveboxMode;
-  readonly extension: ChordExtension | null;
 }
 
 @Component({
@@ -166,20 +188,22 @@ export class MousikGrooveboxComponent implements OnDestroy {
   protected readonly degreeShortcuts = DEGREE_SHORTCUTS;
   protected readonly degreeNumerals = DEGREE_NUMERALS;
 
-  protected readonly modeIndex = signal(0);
+  protected readonly modeIndex = signal(2);
   protected readonly scaleIndex = signal(5);
   protected readonly rootIndex = signal(0);
   protected readonly octaveOffset = signal(0);
   protected readonly holdEnabled = signal(false);
-  protected readonly heldExtensions = signal<readonly ChordExtension[]>([]);
+  protected readonly activeDirections = signal<ReadonlySet<DpadDirection>>(new Set());
   protected readonly pressedDegrees = signal<ReadonlySet<number>>(new Set());
   protected readonly litControls = signal<ReadonlySet<ControlId>>(new Set());
   protected readonly looperState = signal<LooperState>('stopped');
   protected readonly looperEvents = signal<readonly LooperEvent[]>([]);
 
-  private readonly heldNotesByDegree = new Map<number, readonly number[]>();
-  private readonly pendingRecords = new Map<number, PendingRecord>();
-  private latchedNotes: readonly number[] = [];
+  private activePad: number | null = null;
+  private soundingNotes: number[] = [];
+  private readonly heldStack: number[] = [];
+  private pendingRecord: PendingRecord | null = null;
+  private patchApplied = false;
   private loopStartContextTime = 0;
   private scheduledUntilBeat = 0;
   private schedulerId: number | null = null;
@@ -188,18 +212,8 @@ export class MousikGrooveboxComponent implements OnDestroy {
   protected readonly scale = computed(() => SCALES[this.scaleIndex()]);
   protected readonly rootName = computed(() => NOTE_NAMES[this.rootIndex()]);
 
-  protected readonly activeExtension = computed<ChordExtension | null>(() => {
-    const extensions = this.heldExtensions();
-    return extensions.length > 0 ? extensions[extensions.length - 1] : null;
-  });
-
-  protected readonly extensionReadout = computed(() => {
-    if (this.mode() !== 'CHORD') {
-      return '--';
-    }
-    const extension = this.activeExtension();
-    return extension === null ? 'TRIAD' : EXTENSION_LABELS[extension];
-  });
+  protected readonly chordShape = computed(() => this.resolveChord(this.activeDirections()));
+  protected readonly chordReadout = computed(() => this.chordShape().label);
 
   protected readonly octaveReadout = computed(() => {
     const offset = this.octaveOffset();
@@ -225,11 +239,8 @@ export class MousikGrooveboxComponent implements OnDestroy {
     this.rootIndex();
     this.scaleIndex();
     this.octaveOffset();
-    if (this.mode() === 'DRUMS') {
-      return DRUM_PADS.map((pad) => pad.label);
-    }
     return Array.from({ length: DEGREE_SHORTCUTS.length }, (_, degreeIndex) =>
-      this.noteLabel(this.degreeStepMidi(this.mode(), degreeIndex))
+      this.noteLabel(this.degreeStepMidi(degreeIndex))
     );
   });
 
@@ -257,12 +268,10 @@ export class MousikGrooveboxComponent implements OnDestroy {
       this.clearLooper();
       return;
     }
-    const extension = ARROW_TO_EXTENSION.get(event.key);
-    if (extension !== undefined) {
+    const direction = ARROW_TO_DIRECTION.get(event.key);
+    if (direction !== undefined) {
       event.preventDefault();
-      if (this.mode() === 'CHORD') {
-        this.engageExtension(extension);
-      }
+      this.engageDirection(direction);
       return;
     }
     const lowerKey = event.key.toLowerCase();
@@ -291,9 +300,9 @@ export class MousikGrooveboxComponent implements OnDestroy {
       this.unmarkControl('clear');
       return;
     }
-    const extension = ARROW_TO_EXTENSION.get(event.key);
-    if (extension !== undefined) {
-      this.disengageExtension(extension);
+    const direction = ARROW_TO_DIRECTION.get(event.key);
+    if (direction !== undefined) {
+      this.disengageDirection(direction);
       return;
     }
     const lowerKey = event.key.toLowerCase();
@@ -313,15 +322,26 @@ export class MousikGrooveboxComponent implements OnDestroy {
     return this.litControls().has(controlId);
   }
 
+  protected isDirectionActive(direction: DpadDirection): boolean {
+    return this.activeDirections().has(direction);
+  }
+
+  protected isComboActive(first: DpadDirection, second: DpadDirection): boolean {
+    const directions = this.activeDirections();
+    return directions.has(first) && directions.has(second);
+  }
+
   protected shiftRoot(delta: number): void {
     this.rootIndex.update(
       (index) => (index + delta + NOTE_NAMES.length) % NOTE_NAMES.length
     );
+    this.refreshChordVoices();
     this.visualEngine.triggerImpact(CONTROL_GLITCH_STRENGTH);
   }
 
   protected cycleScale(delta: number): void {
     this.scaleIndex.update((index) => (index + delta + SCALES.length) % SCALES.length);
+    this.refreshChordVoices();
     this.visualEngine.triggerImpact(CONTROL_GLITCH_STRENGTH);
   }
 
@@ -329,29 +349,30 @@ export class MousikGrooveboxComponent implements OnDestroy {
     this.octaveOffset.update((offset) =>
       Math.min(OCTAVE_MAX, Math.max(OCTAVE_MIN, offset + delta))
     );
+    this.refreshChordVoices();
     this.visualEngine.triggerImpact(CONTROL_GLITCH_STRENGTH);
   }
 
   protected cycleMode(): void {
-    this.releaseAllDegrees();
-    this.heldExtensions.set([]);
     this.modeIndex.update((index) => (index + 1) % MODES.length);
+    this.applyModePatch();
     this.visualEngine.triggerImpact(CONTROL_GLITCH_STRENGTH);
   }
 
   protected toggleHold(): void {
     const enabling = !this.holdEnabled();
     this.holdEnabled.set(enabling);
-    if (!enabling) {
-      this.releaseLatchedNotes();
+    if (!enabling && this.activePad !== null && !this.pressedDegrees().has(this.activePad)) {
+      this.finalizePending();
+      this.stopSoundingAudio();
+      this.activePad = null;
     }
   }
 
   protected async toggleLooper(): Promise<void> {
     const state = this.looperState();
     if (state === 'stopped') {
-      this.audioEngine.initialize();
-      await this.audioEngine.resume();
+      await this.ensureAudio();
       this.startTransport();
       this.looperState.set('recording');
       return;
@@ -366,22 +387,17 @@ export class MousikGrooveboxComponent implements OnDestroy {
   protected clearLooper(): void {
     this.stopTransport();
     this.looperEvents.set([]);
-    this.pendingRecords.clear();
+    this.pendingRecord = null;
     this.looperState.set('stopped');
   }
 
-  protected onDpadPress(extension: ChordExtension): void {
-    if (this.mode() === 'CHORD') {
-      this.engageExtension(extension);
-    }
+  protected onArrowPointerDown(event: PointerEvent, direction: DpadDirection): void {
+    event.preventDefault();
+    this.engageDirection(direction);
   }
 
-  protected onDpadRelease(extension: ChordExtension): void {
-    this.disengageExtension(extension);
-  }
-
-  protected isExtensionLit(extension: ChordExtension): boolean {
-    return this.mode() === 'CHORD' && this.heldExtensions().includes(extension);
+  protected onArrowPointerUp(direction: DpadDirection): void {
+    this.disengageDirection(direction);
   }
 
   protected onPadPointerDown(event: PointerEvent, degreeIndex: number): void {
@@ -395,10 +411,67 @@ export class MousikGrooveboxComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopTransport();
-    this.releaseAllDegrees();
-    this.releaseLatchedNotes();
+    this.finalizePending();
+    this.stopSoundingAudio();
+    this.activePad = null;
     this.audioEngine.allNotesOff();
     this.visualEngine.dispose();
+  }
+
+  private engageDirection(direction: DpadDirection): void {
+    if (this.activeDirections().has(direction)) {
+      return;
+    }
+    this.activeDirections.update((directions) => {
+      const next = new Set(directions);
+      next.add(direction);
+      return next;
+    });
+    this.refreshChordVoices();
+  }
+
+  private disengageDirection(direction: DpadDirection): void {
+    if (!this.activeDirections().has(direction)) {
+      return;
+    }
+    this.activeDirections.update((directions) => {
+      const next = new Set(directions);
+      next.delete(direction);
+      return next;
+    });
+    this.refreshChordVoices();
+  }
+
+  private resolveChord(directions: ReadonlySet<DpadDirection>): ChordShape {
+    const up = directions.has('up');
+    const down = directions.has('down');
+    const left = directions.has('left');
+    const right = directions.has('right');
+    if (up && right) {
+      return CHORD_9;
+    }
+    if (down && right) {
+      return CHORD_69;
+    }
+    if (up && left) {
+      return CHORD_11;
+    }
+    if (down && left) {
+      return CHORD_7SUS4;
+    }
+    if (up) {
+      return CHORD_7;
+    }
+    if (down) {
+      return CHORD_6;
+    }
+    if (left) {
+      return CHORD_SUS4;
+    }
+    if (right) {
+      return CHORD_ADD9;
+    }
+    return CHORD_NOTE;
   }
 
   private applyControl(controlId: ControlId): void {
@@ -451,6 +524,121 @@ export class MousikGrooveboxComponent implements OnDestroy {
     });
   }
 
+  private async ensureAudio(): Promise<void> {
+    this.audioEngine.initialize();
+    await this.audioEngine.resume();
+    if (!this.patchApplied) {
+      this.applyModePatch();
+      this.patchApplied = true;
+    }
+  }
+
+  private applyModePatch(): void {
+    const preset = MODE_PATCHES[this.mode()];
+    this.audioEngine.updateOscillator('osc-a', preset.oscA);
+    this.audioEngine.updateOscillator('osc-b', preset.oscB);
+    this.audioEngine.updateOscillator('osc-c', preset.oscC);
+    this.audioEngine.setEnvelope(preset.envelope);
+  }
+
+  private async pressDegree(degreeIndex: number): Promise<void> {
+    if (this.pressedDegrees().has(degreeIndex)) {
+      return;
+    }
+    this.pressedDegrees.update((degrees) => {
+      const next = new Set(degrees);
+      next.add(degreeIndex);
+      return next;
+    });
+    this.heldStack.push(degreeIndex);
+    await this.ensureAudio();
+    if (!this.pressedDegrees().has(degreeIndex)) {
+      return;
+    }
+    this.activatePad(degreeIndex);
+  }
+
+  private releaseDegree(degreeIndex: number): void {
+    if (!this.pressedDegrees().has(degreeIndex)) {
+      return;
+    }
+    this.pressedDegrees.update((degrees) => {
+      const next = new Set(degrees);
+      next.delete(degreeIndex);
+      return next;
+    });
+    const stackIndex = this.heldStack.lastIndexOf(degreeIndex);
+    if (stackIndex >= 0) {
+      this.heldStack.splice(stackIndex, 1);
+    }
+    if (degreeIndex !== this.activePad) {
+      return;
+    }
+    if (this.heldStack.length > 0) {
+      this.activatePad(this.heldStack[this.heldStack.length - 1]);
+      return;
+    }
+    if (this.holdEnabled()) {
+      return;
+    }
+    this.finalizePending();
+    this.stopSoundingAudio();
+    this.activePad = null;
+  }
+
+  private activatePad(degreeIndex: number): void {
+    const previousNotes = this.soundingNotes;
+    this.finalizePending();
+    this.stopSoundingAudio();
+    const steps = this.chordShape().steps;
+    const target = steps.map((step) => this.degreeStepMidi(degreeIndex + step));
+    this.soundingNotes = target;
+    this.activePad = degreeIndex;
+    for (let index = 0; index < target.length; index += 1) {
+      const glideFrom =
+        previousNotes.length > 0
+          ? previousNotes[Math.min(index, previousNotes.length - 1)]
+          : undefined;
+      this.audioEngine.noteOn(
+        target[index],
+        NOTE_VELOCITY,
+        undefined,
+        glideFrom,
+        glideFrom === undefined ? undefined : GLIDE_SECONDS
+      );
+    }
+    this.startPendingRecord(degreeIndex, steps);
+    this.visualEngine.triggerImpact(KEY_GLITCH_STRENGTH);
+  }
+
+  private refreshChordVoices(): void {
+    if (this.activePad === null || this.soundingNotes.length === 0) {
+      return;
+    }
+    const pad = this.activePad;
+    const target = this.chordShape().steps.map((step) => this.degreeStepMidi(pad + step));
+    const toRemove = this.soundingNotes.filter((note) => !target.includes(note));
+    const toAdd = target.filter((note) => !this.soundingNotes.includes(note));
+    if (toRemove.length === 0 && toAdd.length === 0) {
+      return;
+    }
+    for (const midiNote of toRemove) {
+      this.audioEngine.noteOff(midiNote);
+    }
+    for (const midiNote of toAdd) {
+      this.audioEngine.noteOn(midiNote, NOTE_VELOCITY);
+    }
+    this.soundingNotes = target;
+    this.visualEngine.triggerImpact(MORPH_GLITCH_STRENGTH);
+  }
+
+  private stopSoundingAudio(): void {
+    for (const midiNote of this.soundingNotes) {
+      this.audioEngine.noteOff(midiNote);
+    }
+    this.soundingNotes = [];
+  }
+
   private startTransport(): void {
     this.loopStartContextTime =
       this.audioEngine.getCurrentTime() + TRANSPORT_START_DELAY_SECONDS;
@@ -480,9 +668,7 @@ export class MousikGrooveboxComponent implements OnDestroy {
       return;
     }
     for (const event of this.looperEvents()) {
-      let cycleIndex = Math.ceil(
-        (this.scheduledUntilBeat - event.startBeat) / LOOP_BEATS
-      );
+      let cycleIndex = Math.ceil((this.scheduledUntilBeat - event.startBeat) / LOOP_BEATS);
       if (cycleIndex < 0) {
         cycleIndex = 0;
       }
@@ -502,14 +688,14 @@ export class MousikGrooveboxComponent implements OnDestroy {
   }
 
   private scheduleEvent(event: LooperEvent, when: number, secondsPerBeat: number): void {
-    if (event.mode === 'DRUMS') {
-      this.audioEngine.playDrum(DRUM_PADS[event.degreeIndex].sound, event.velocity, when);
-    } else {
-      const midiNotes = this.degreeMidiNotes(event.mode, event.degreeIndex, event.extension);
-      const durationSeconds = event.durationBeats * secondsPerBeat * NOTE_GATE_RATIO;
-      for (const midiNote of midiNotes) {
-        this.audioEngine.playNote(midiNote, durationSeconds, event.velocity, when);
-      }
+    const durationSeconds = event.durationBeats * secondsPerBeat * NOTE_GATE_RATIO;
+    for (const step of event.steps) {
+      this.audioEngine.playNote(
+        this.degreeStepMidi(event.degreeIndex + step),
+        durationSeconds,
+        event.velocity,
+        when
+      );
     }
     const delayMs = Math.max(0, (when - this.audioEngine.getCurrentTime()) * 1000);
     window.setTimeout(() => {
@@ -519,121 +705,22 @@ export class MousikGrooveboxComponent implements OnDestroy {
     }, delayMs);
   }
 
-  private async pressDegree(degreeIndex: number): Promise<void> {
-    if (this.pressedDegrees().has(degreeIndex)) {
-      return;
-    }
-    this.audioEngine.initialize();
-    await this.audioEngine.resume();
-
-    this.pressedDegrees.update((degrees) => {
-      const next = new Set(degrees);
-      next.add(degreeIndex);
-      return next;
-    });
-    this.visualEngine.triggerImpact(KEY_GLITCH_STRENGTH);
-
-    const mode = this.mode();
-    if (mode === 'DRUMS') {
-      this.audioEngine.playDrum(DRUM_PADS[degreeIndex].sound, NOTE_VELOCITY);
-      this.recordImmediateEvent(degreeIndex, mode);
-      return;
-    }
-
-    const extension = mode === 'CHORD' ? this.activeExtension() : null;
-    const midiNotes = this.degreeMidiNotes(mode, degreeIndex, extension);
-    if (this.holdEnabled()) {
-      this.releaseLatchedNotes();
-    }
-    for (const midiNote of midiNotes) {
-      this.audioEngine.noteOn(midiNote, NOTE_VELOCITY);
-    }
-    this.heldNotesByDegree.set(degreeIndex, midiNotes);
-    if (this.holdEnabled()) {
-      this.latchedNotes = midiNotes;
-    }
-    this.startPendingRecord(degreeIndex, mode, extension);
-  }
-
-  private releaseDegree(degreeIndex: number): void {
-    if (!this.pressedDegrees().has(degreeIndex)) {
-      return;
-    }
-    this.pressedDegrees.update((degrees) => {
-      const next = new Set(degrees);
-      next.delete(degreeIndex);
-      return next;
-    });
-    this.finalizePendingRecord(degreeIndex);
-    const midiNotes = this.heldNotesByDegree.get(degreeIndex);
-    this.heldNotesByDegree.delete(degreeIndex);
-    if (this.holdEnabled() || midiNotes === undefined) {
-      return;
-    }
-    for (const midiNote of midiNotes) {
-      this.audioEngine.noteOff(midiNote);
-    }
-  }
-
-  private releaseAllDegrees(): void {
-    for (const degreeIndex of [...this.pressedDegrees()]) {
-      this.releaseDegree(degreeIndex);
-    }
-  }
-
-  private releaseLatchedNotes(): void {
-    for (const midiNote of this.latchedNotes) {
-      this.audioEngine.noteOff(midiNote);
-    }
-    this.latchedNotes = [];
-  }
-
-  private isRecordingState(): boolean {
-    const state = this.looperState();
-    return state === 'recording' || state === 'overdub';
-  }
-
-  private recordImmediateEvent(degreeIndex: number, mode: GrooveboxMode): void {
+  private startPendingRecord(degreeIndex: number, steps: readonly number[]): void {
     if (!this.isRecordingState()) {
       return;
     }
-    this.looperEvents.update((events) => [
-      ...events,
-      {
-        id: crypto.randomUUID(),
-        degreeIndex,
-        mode,
-        extension: null,
-        startBeat: this.currentLoopBeat(),
-        durationBeats: DRUM_EVENT_BEATS,
-        velocity: NOTE_VELOCITY
-      }
-    ]);
-  }
-
-  private startPendingRecord(
-    degreeIndex: number,
-    mode: GrooveboxMode,
-    extension: ChordExtension | null
-  ): void {
-    if (!this.isRecordingState()) {
-      return;
-    }
-    this.pendingRecords.set(degreeIndex, {
+    this.pendingRecord = {
+      degreeIndex,
+      steps: [...steps],
       startAbsoluteBeat: this.currentAbsoluteBeat(),
-      startLoopBeat: this.currentLoopBeat(),
-      mode,
-      extension
-    });
+      startLoopBeat: this.currentLoopBeat()
+    };
   }
 
-  private finalizePendingRecord(degreeIndex: number): void {
-    const pending = this.pendingRecords.get(degreeIndex);
-    if (pending === undefined) {
-      return;
-    }
-    this.pendingRecords.delete(degreeIndex);
-    if (this.looperState() === 'stopped') {
+  private finalizePending(): void {
+    const pending = this.pendingRecord;
+    this.pendingRecord = null;
+    if (pending === null || !this.isRecordingState()) {
       return;
     }
     const durationBeats = Math.min(
@@ -644,9 +731,8 @@ export class MousikGrooveboxComponent implements OnDestroy {
       ...events,
       {
         id: crypto.randomUUID(),
-        degreeIndex,
-        mode: pending.mode,
-        extension: pending.extension,
+        degreeIndex: pending.degreeIndex,
+        steps: pending.steps,
         startBeat: pending.startLoopBeat,
         durationBeats,
         velocity: NOTE_VELOCITY
@@ -654,17 +740,9 @@ export class MousikGrooveboxComponent implements OnDestroy {
     ]);
   }
 
-  private engageExtension(extension: ChordExtension): void {
-    this.heldExtensions.update((extensions) =>
-      extensions.includes(extension) ? extensions : [...extensions, extension]
-    );
-    this.visualEngine.triggerImpact(CONTROL_GLITCH_STRENGTH);
-  }
-
-  private disengageExtension(extension: ChordExtension): void {
-    this.heldExtensions.update((extensions) =>
-      extensions.filter((held) => held !== extension)
-    );
+  private isRecordingState(): boolean {
+    const state = this.looperState();
+    return state === 'recording' || state === 'overdub';
   }
 
   private currentAbsoluteBeat(): number {
@@ -678,29 +756,10 @@ export class MousikGrooveboxComponent implements OnDestroy {
     return this.currentAbsoluteBeat() % LOOP_BEATS;
   }
 
-  private degreeMidiNotes(
-    mode: GrooveboxMode,
-    degreeIndex: number,
-    extension: ChordExtension | null
-  ): readonly number[] {
-    if (mode !== 'CHORD') {
-      return [this.degreeStepMidi(mode, degreeIndex)];
-    }
-    const midiNotes = [
-      this.degreeStepMidi(mode, degreeIndex),
-      this.degreeStepMidi(mode, degreeIndex + 2),
-      this.degreeStepMidi(mode, degreeIndex + 4)
-    ];
-    if (extension !== null) {
-      midiNotes.push(midiNotes[0] + EXTENSION_ADDED_INTERVALS[extension]);
-    }
-    return midiNotes;
-  }
-
-  private degreeStepMidi(mode: GrooveboxMode, step: number): number {
+  private degreeStepMidi(step: number): number {
     const intervals = this.scale().intervals;
     return (
-      MODE_BASE_MIDI[mode] +
+      BASE_MIDI +
       this.rootIndex() +
       12 * this.octaveOffset() +
       intervals[step % intervals.length] +

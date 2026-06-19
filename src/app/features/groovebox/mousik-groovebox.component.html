@@ -9,7 +9,7 @@
           <div class="oled">
             <pre class="oled__line">ROOT:{{ rootName() }}  OCT:{{ octaveReadout() }}</pre>
             <pre class="oled__line">SCALE:{{ scale().name }}  MODE:{{ mode() }}</pre>
-            <pre class="oled__line">HOLD:{{ holdEnabled() ? 'ON' : 'OFF' }}  EXT:{{ extensionReadout() }}</pre>
+            <pre class="oled__line">CHORD:{{ chordReadout() }}  HOLD:{{ holdEnabled() ? 'ON' : 'OFF' }}</pre>
             <pre class="oled__line">LOOP:{{ looperReadout() }}  EVT:{{ looperEvents().length }}  CTX:{{ contextReadout() }}</pre>
           </div>
           <div class="utility">
@@ -84,7 +84,7 @@
                 [class.utilkey--lit]="isControlLit('mode')"
                 (click)="cycleMode()"
               >
-                <span>CYCLE</span>
+                <span>CYCLE TIMBRE</span>
                 <span class="kbd">B</span>
               </button>
             </div>
@@ -135,40 +135,40 @@
 
     <div class="panel-main">
       <div class="side-cluster">
-        <div class="dpad" [class.dpad--inactive]="mode() !== 'CHORD'">
+        <div class="dpad">
           <button
             type="button"
             class="dpad__key dpad__key--up"
-            [class.dpad__key--lit]="isExtensionLit('maj7')"
-            (pointerdown)="onDpadPress('maj7')"
-            (pointerup)="onDpadRelease('maj7')"
-            (pointerleave)="onDpadRelease('maj7')"
-            (pointercancel)="onDpadRelease('maj7')"
+            [class.dpad__key--lit]="isDirectionActive('up')"
+            (pointerdown)="onArrowPointerDown($event, 'up')"
+            (pointerup)="onArrowPointerUp('up')"
+            (pointerleave)="onArrowPointerUp('up')"
+            (pointercancel)="onArrowPointerUp('up')"
           >
             <span class="dpad__arrow">↑</span>
-            <span class="dpad__ext">MAJ7</span>
+            <span class="dpad__ext">7TH</span>
           </button>
           <button
             type="button"
             class="dpad__key dpad__key--left"
-            [class.dpad__key--lit]="isExtensionLit('sixth')"
-            (pointerdown)="onDpadPress('sixth')"
-            (pointerup)="onDpadRelease('sixth')"
-            (pointerleave)="onDpadRelease('sixth')"
-            (pointercancel)="onDpadRelease('sixth')"
+            [class.dpad__key--lit]="isDirectionActive('left')"
+            (pointerdown)="onArrowPointerDown($event, 'left')"
+            (pointerup)="onArrowPointerUp('left')"
+            (pointerleave)="onArrowPointerUp('left')"
+            (pointercancel)="onArrowPointerUp('left')"
           >
             <span class="dpad__arrow">←</span>
-            <span class="dpad__ext">6</span>
+            <span class="dpad__ext">SUS4</span>
           </button>
           <span class="dpad__hub"></span>
           <button
             type="button"
             class="dpad__key dpad__key--right"
-            [class.dpad__key--lit]="isExtensionLit('add9')"
-            (pointerdown)="onDpadPress('add9')"
-            (pointerup)="onDpadRelease('add9')"
-            (pointerleave)="onDpadRelease('add9')"
-            (pointercancel)="onDpadRelease('add9')"
+            [class.dpad__key--lit]="isDirectionActive('right')"
+            (pointerdown)="onArrowPointerDown($event, 'right')"
+            (pointerup)="onArrowPointerUp('right')"
+            (pointerleave)="onArrowPointerUp('right')"
+            (pointercancel)="onArrowPointerUp('right')"
           >
             <span class="dpad__arrow">→</span>
             <span class="dpad__ext">ADD9</span>
@@ -176,17 +176,21 @@
           <button
             type="button"
             class="dpad__key dpad__key--down"
-            [class.dpad__key--lit]="isExtensionLit('min7')"
-            (pointerdown)="onDpadPress('min7')"
-            (pointerup)="onDpadRelease('min7')"
-            (pointerleave)="onDpadRelease('min7')"
-            (pointercancel)="onDpadRelease('min7')"
+            [class.dpad__key--lit]="isDirectionActive('down')"
+            (pointerdown)="onArrowPointerDown($event, 'down')"
+            (pointerup)="onArrowPointerUp('down')"
+            (pointerleave)="onArrowPointerUp('down')"
+            (pointercancel)="onArrowPointerUp('down')"
           >
             <span class="dpad__arrow">↓</span>
-            <span class="dpad__ext">m7</span>
+            <span class="dpad__ext">6TH</span>
           </button>
+          <span class="dpad__combo dpad__combo--ul" [class.dpad__combo--lit]="isComboActive('up', 'left')">11TH</span>
+          <span class="dpad__combo dpad__combo--ur" [class.dpad__combo--lit]="isComboActive('up', 'right')">9TH</span>
+          <span class="dpad__combo dpad__combo--dl" [class.dpad__combo--lit]="isComboActive('down', 'left')">7SUS4</span>
+          <span class="dpad__combo dpad__combo--dr" [class.dpad__combo--lit]="isComboActive('down', 'right')">6/9</span>
         </div>
-        <span class="selector-label">CHORD EXT (CHORD MODE)</span>
+        <span class="selector-label">D-PAD DIATONIC EXT (IN-KEY)</span>
       </div>
 
       <div class="pads">

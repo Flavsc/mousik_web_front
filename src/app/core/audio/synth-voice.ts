@@ -19,6 +19,8 @@ export interface SynthVoiceOptions {
   readonly midiNote: number;
   readonly velocity: number;
   readonly startTime: number;
+  readonly glideFromMidi?: number;
+  readonly glideSeconds?: number;
   readonly onComplete: (voice: SynthVoice) => void;
 }
 
@@ -47,13 +49,25 @@ export class SynthVoice {
     this.scheduleAttackAndDecay(options.velocity);
 
     const baseFrequency = midiNoteToFrequency(options.midiNote);
+    const glideSeconds = options.glideSeconds ?? 0;
+    const glideFromBase =
+      options.glideFromMidi !== undefined ? midiNoteToFrequency(options.glideFromMidi) : 0;
     for (const config of options.oscillators) {
       const frequency = baseFrequency * Math.pow(2, config.octaveShift);
       const oscillator = options.context.createOscillator();
       oscillator.setPeriodicWave(
         options.waveFactory.create(config.waveform, config.phaseOffsetRadians, frequency)
       );
-      oscillator.frequency.setValueAtTime(frequency, options.startTime);
+      if (glideSeconds > 0 && glideFromBase > 0) {
+        const fromFrequency = glideFromBase * Math.pow(2, config.octaveShift);
+        oscillator.frequency.setValueAtTime(fromFrequency, options.startTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          frequency,
+          options.startTime + glideSeconds
+        );
+      } else {
+        oscillator.frequency.setValueAtTime(frequency, options.startTime);
+      }
       oscillator.detune.setValueAtTime(config.detuneCents, options.startTime);
 
       const oscillatorGain = options.context.createGain();

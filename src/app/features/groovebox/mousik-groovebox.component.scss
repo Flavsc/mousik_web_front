@@ -385,7 +385,7 @@
 
 .panel-main {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 26px;
   align-items: stretch;
 }
@@ -395,7 +395,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .selector-label {
@@ -408,17 +408,13 @@
 
 .dpad {
   display: grid;
-  grid-template-columns: repeat(3, 58px);
-  grid-template-rows: repeat(3, 58px);
+  grid-template-columns: repeat(3, 62px);
+  grid-template-rows: repeat(3, 62px);
   grid-template-areas:
-    '. up .'
-    'left hub right'
-    '. down .';
-  gap: 4px;
-}
-
-.dpad--inactive {
-  opacity: 0.5;
+    'ul   up    ur'
+    'left hub   right'
+    'dl   down  dr';
+  gap: 5px;
 }
 
 .dpad__key {
@@ -453,12 +449,12 @@
   background: linear-gradient(180deg, #6a6760 0%, #45433d 100%);
   box-shadow:
     0 2px 0 #1d1c19,
-    0 0 12px rgba(255, 214, 90, 0.55),
-    inset 0 0 8px rgba(255, 214, 90, 0.5);
+    0 0 12px rgba(255, 214, 90, 0.6),
+    inset 0 0 9px rgba(255, 214, 90, 0.55);
 }
 
 .dpad__arrow {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -489,6 +485,45 @@
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #57554f, #2f2d29);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.dpad__combo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px dashed rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6f6c63;
+}
+
+.dpad__combo--ul {
+  grid-area: ul;
+}
+
+.dpad__combo--ur {
+  grid-area: ur;
+}
+
+.dpad__combo--dl {
+  grid-area: dl;
+}
+
+.dpad__combo--dr {
+  grid-area: dr;
+}
+
+.dpad__combo--lit {
+  border-style: solid;
+  border-color: #c79a14;
+  background: linear-gradient(180deg, #fff3c0 0%, #e8cf78 100%);
+  color: #3a2c05;
+  box-shadow:
+    0 0 12px rgba(255, 214, 90, 0.8),
+    inset 0 0 6px rgba(255, 214, 90, 0.6);
 }
 
 .pads {

@@ -104,8 +104,14 @@ export class AudioEngineService {
     this.isRunning.set(false);
   }
 
-  noteOn(midiNote: number, velocity = 1, when?: number): void {
-    this.spawnVoice(midiNote, velocity, when);
+  noteOn(
+    midiNote: number,
+    velocity = 1,
+    when?: number,
+    glideFromMidi?: number,
+    glideSeconds?: number
+  ): void {
+    this.spawnVoice(midiNote, velocity, when, glideFromMidi, glideSeconds);
   }
 
   noteOff(midiNote: number, when?: number): void {
@@ -295,7 +301,13 @@ export class AudioEngineService {
     this.analysisFrame.set(EMPTY_ANALYSIS_FRAME);
   }
 
-  private spawnVoice(midiNote: number, velocity: number, when?: number): SynthVoice | null {
+  private spawnVoice(
+    midiNote: number,
+    velocity: number,
+    when?: number,
+    glideFromMidi?: number,
+    glideSeconds?: number
+  ): SynthVoice | null {
     if (this.audioContext === null || this.waveFactory === null || this.voiceBus === null) {
       return null;
     }
@@ -320,6 +332,8 @@ export class AudioEngineService {
       midiNote,
       velocity: clamp(velocity, 0.05, 1),
       startTime,
+      glideFromMidi,
+      glideSeconds,
       onComplete: (ended) => this.removeVoice(ended)
     });
     this.registerVoice(voice);
